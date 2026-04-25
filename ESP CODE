@@ -1,0 +1,58 @@
+#include <WiFi.h>
+#include <WebServer.h>
+
+// --- WiFi Configuration ---
+const char* ssid = "CHILD SAFETY";
+const char* password = "234555444";
+
+IPAddress local_IP(192, 168, 0, 9); // Permanent Fixed IP
+IPAddress gateway(192, 168, 0, 1);
+IPAddress subnet(255, 255, 255, 0);
+
+WebServer server(80);
+
+// --- Pin Definitions ---
+#define BTN_DANGER 4   // Manual Button
+#define PIN_WATER  5   // Water Detection 
+#define PIN_FIRE   23  // Fire Detection Loop
+
+void handleRoot() {
+  String status = "SYSTEM STABLE";
+  String color = "#00FF00"; // Default Green
+
+  // Priority Logic for Alerts
+  if (digitalRead(BTN_DANGER) == HIGH) { 
+    status = "BABY IN DANGER!"; color = "#FF0000"; 
+  } else if (digitalRead(PIN_WATER) == HIGH) { 
+    status = "BABY UNDER WATER!"; color = "#0000FF"; 
+  } else if (digitalRead(PIN_FIRE) == LOW) { 
+    status = "BABY ON FIRE!"; color = "#FFA500"; 
+  }
+
+  // Dashboard Interface
+  String h = "<html><head><meta name='viewport' content='width=device-width, initial-scale=1'>";
+  h += "<style>body{background:#000;color:#fff;font-family:sans-serif;text-align:center;padding:20px;}";
+  h += ".card{border:2px solid #333;padding:40px;border-radius:25px;background:#111;margin-top:50px;}";
+  h += ".status{font-size:35px;font-weight:bold;color:" + color + ";margin:20px 0;}</style></head><body>";
+  h += "<div class='card'><h1>Child Safety Monitor</h1><hr>";
+  h += "<div class='status'>" + status + "</div><p>Monitoring Physical Sensors...</p></div>";
+  h += "</body></html>";
+  
+  server.send(200, "text/html", h);
+}
+
+void setup() {
+  pinMode(BTN_DANGER, INPUT_PULLDOWN);
+  pinMode(PIN_WATER, INPUT_PULLDOWN);
+  pinMode(PIN_FIRE, INPUT_PULLUP); // Loop must be closed to 3.3v to stay HIGH
+
+  WiFi.softAP(ssid, password);
+  WiFi.softAPConfig(local_IP, gateway, subnet);
+  
+  server.on("/", handleRoot);
+  server.begin();
+}
+
+void loop() {
+  server.handleClient();
+}
